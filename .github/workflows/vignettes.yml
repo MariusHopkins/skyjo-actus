@@ -1,0 +1,40 @@
+# Fabrique les vignettes du ciel (relevé DSS2 du CDS de Strasbourg) une fois
+# pour toutes, pour que le site n'ait plus à attendre le service. Ne refait
+# que les manquantes : une fois le stock complet, un passage ne dure que
+# quelques secondes. Lancement à la main (onglet Actions, « Vignettes du
+# ciel », Run workflow), et chaque lundi pour rattraper d'éventuels échecs.
+name: Vignettes du ciel
+
+on:
+  schedule:
+    - cron: '41 3 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: vignettes
+  cancel-in-progress: false
+
+jobs:
+  vignettes:
+    runs-on: ubuntu-latest
+    timeout-minutes: 175
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262   # v4.4.0
+
+      - name: Fabriquer les vignettes manquantes
+        env:
+          BUDGET_MINUTES: '150'
+        run: python3 vignettes.py
+
+      - name: Enregistrer
+        run: |
+          git add vignettes
+          if git diff --cached --quiet; then echo "Rien de nouveau."; exit 0; fi
+          git config user.name "skyjo-robot"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -q -m "Vignettes du ciel"
+          for i in 1 2 3; do git pull -q --rebase origin main && git push -q && exit 0; sleep 5; done
+          exit 1
