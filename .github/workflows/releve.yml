@@ -1,0 +1,46 @@
+# Le robot de SkyJo : toutes les quatre heures, il relit les flux
+# d'actualite et la liste des supernovae, puis enregistre actus.json
+# s'il y a du nouveau. On peut aussi le lancer a la main depuis l'onglet
+# Actions, bouton "Run workflow".
+name: Releve des actualites
+
+on:
+  schedule:
+    - cron: '23 */4 * * *'      # a 0h23, 4h23, 8h23... (heure UTC)
+  workflow_dispatch:
+
+permissions:
+  contents: write               # pour pouvoir enregistrer actus.json
+
+concurrency:
+  group: releve
+  cancel-in-progress: false
+
+jobs:
+  releve:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Installer le calcul des ephemerides
+        run: pip install --quiet skyfield==1.55 skyfield-data==7.0.0
+
+      - name: Relever les sources
+        run: python3 releve.py
+
+      - name: Enregistrer s'il y a du nouveau
+        run: |
+          if git diff --quiet -- actus.json && git ls-files --error-unmatch actus.json >/dev/null 2>&1; then
+            echo "Rien de nouveau."
+            exit 0
+          fi
+          git config user.name "skyjo-robot"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add actus.json
+          git commit -m "Releve du $(date -u '+%Y-%m-%d %H:%M') UTC"
+          git push
