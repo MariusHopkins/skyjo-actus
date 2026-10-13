@@ -47,7 +47,11 @@ SOURCES = [
     # Rendez-vous du ciel a observer, par un site de vulgarisation francais
     {'id': 'stelvision', 'nom': 'Stelvision',
      'site': 'https://www.stelvision.com/astro/',
-     'flux': 'https://www.stelvision.com/astro/feed/'},
+     'flux': 'https://www.stelvision.com/astro/feed/',
+     # le site tient aussi une boutique : on ecarte ce qui en fait la promotion
+     'exclure': ['boutique', 'lunettes d', 'filtre', 'de stelvision', 'où trouver',
+                 'ou trouver', 'promo', 'offre', 'soldes', 'cadeau', 'livraison',
+                 'commande', 'nouveauté', 'nouveaute']},
     # Communiques de l'Observatoire europeen austral, en francais
     {'id': 'eso', 'nom': 'ESO',
      'site': 'https://www.eso.org/public/france/news/',
