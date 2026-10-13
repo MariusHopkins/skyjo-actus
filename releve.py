@@ -164,7 +164,9 @@ def articles_du_flux(xml, source):
             quand = date_de(t)
             if quand:
                 break
-        if not titre or not lien or not lien.startswith('http') or not quand:
+        # liens chiffres seulement : un lien en http, ou de tout autre type,
+        # n'a rien a faire dans la page
+        if not titre or not lien or not lien.startswith('https://') or not quand:
             continue
         botte = (titre.lower() + ' | ' + ' | '.join(etiquettes))
         if any(m in botte for m in exclure):
