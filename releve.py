@@ -39,9 +39,19 @@ SORTIE = os.path.join(ICI, 'actus.json')
 # spatiale, satellites militaires compris).
 # ------------------------------------------------------------------------
 SOURCES = [
-    {'id': 'cieletespace', 'nom': 'Ciel & Espace',
-     'site': 'https://www.cieletespace.fr',
-     'flux': 'https://www.cieletespace.fr/rss'},
+    # Le blog d'un photographe du ciel : observations, ephemerides du mois,
+    # images commentees. Heberge par Futura, mais tenu par son seul auteur.
+    {'id': 'cielmania', 'nom': 'Cielmania (J.-B. Feldmann)',
+     'site': 'https://blogs.futura-sciences.com/feldmann/',
+     'flux': 'https://blogs.futura-sciences.com/feldmann/feed/'},
+    # Rendez-vous du ciel a observer, par un site de vulgarisation francais
+    {'id': 'stelvision', 'nom': 'Stelvision',
+     'site': 'https://www.stelvision.com/astro/',
+     'flux': 'https://www.stelvision.com/astro/feed/'},
+    # Communiques de l'Observatoire europeen austral, en francais
+    {'id': 'eso', 'nom': 'ESO',
+     'site': 'https://www.eso.org/public/france/news/',
+     'flux': 'https://www.eso.org/public/france/news/feed/'},
     {'id': 'obspm', 'nom': 'Observatoire de Paris',
      'site': 'https://observatoiredeparis.psl.eu',
      'flux': 'https://observatoiredeparis.psl.eu/spip.php?id_rubrique=105&page=backend',
@@ -49,12 +59,10 @@ SOURCES = [
      # pas de l'actualite du ciel
      'exclure': ['laureat', 'lauréat', 'médaille', 'medaille', 'prix ', 'recrute',
                  'nomination', 'nommé', 'nommée']},
-    {'id': 'futura', 'nom': 'Futura',
-     'site': 'https://www.futura-sciences.com/sciences/espace/',
-     'flux': 'https://www.futura-sciences.com/rss/espace/actualites.xml',
-     'exclure': ['observation de la terre', 'militar', 'guerre', 'starlink',
-                 'climat', 'défense', 'defense', 'armée', 'armee', 'missile',
-                 'lanceur', 'ariane', 'spacex']},
+    # Peu d'articles, mais de fond, ecrits avec les chercheurs du CNRS
+    {'id': 'cnrs', 'nom': 'CNRS Le Journal',
+     'site': 'https://lejournal.cnrs.fr/astronomie',
+     'flux': 'https://lejournal.cnrs.fr/rss/32'},
 ]
 
 SUPERNOVAE = {
@@ -63,7 +71,7 @@ SUPERNOVAE = {
     'lien': 'https://www.rochesterastronomy.org/supernova.html',
 }
 
-JOURS_ARTICLES = 45        # au-dela, un article n'est plus une actualite
+JOURS_ARTICLES = 75        # au-dela, un article n'est plus une actualite
 PAR_SOURCE = 12
 TOTAL = 40
 MAG_LIMITE = 16.0          # au-dela, hors de portee d'un petit instrument

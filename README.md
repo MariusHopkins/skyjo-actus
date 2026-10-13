@@ -4,7 +4,7 @@ Le robot qui alimente la page « Actualités » de SkyJo.
 
 Toutes les quatre heures, GitHub lance `releve.py`, qui lit :
 
-- les flux d'actualité de **Ciel & Espace**, de l'**Observatoire de Paris** et de **Futura** (rubrique Espace) ;
+- les flux d'actualité de **Cielmania** (le blog de Jean-Baptiste Feldmann, photographe du ciel), de **Stelvision**, de l'**ESO** (communiqués en français), de l'**Observatoire de Paris** et de **CNRS Le Journal** (rubrique Astronomie) ;
 - la liste des **supernovae actives** tenue par Rochester Astronomy.
 
 Il écrit le résultat dans `actus.json`, que le site vient lire.
