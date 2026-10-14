@@ -389,6 +389,9 @@ def sans_horodatage(d):
         s.pop('verifie', None)
     d.get('supernovae', {}).pop('verifie', None)
     (d.get('evenements') or {}).pop('calcule', None)
+    for v in (d.get('ciel') or {}).values():
+        if isinstance(v, dict):
+            v.pop('verifie', None)
     return d
 
 
@@ -454,6 +457,17 @@ def main():
           'limite_mag': MAG_LIMITE}
     try:
         liste = selection_supernovae(supernovae_de(lire(SUPERNOVAE['page'])))
+        # Depuis quand chacune est-elle a portee ? Reprise du releve precedent ;
+        # une nouvelle venue prend la date du jour (le site en fait un bandeau).
+        # Au premier passage de ce calcul, les anciennes restent sans date.
+        avant_sn = {x.get('nom'): x for x in avant.get('supernovae', {}).get('liste', [])}
+        for x in liste:
+            if x['nom'] in avant_sn:
+                x['a_portee_depuis'] = avant_sn[x['nom']].get('a_portee_depuis', '')
+            elif avant_sn or avant.get('supernovae'):
+                x['a_portee_depuis'] = t[:10]
+            else:
+                x['a_portee_depuis'] = ''
         sn.update(ok=True, verifie=t, liste=liste)
         print('%-24s %2d plus brillantes que %.1f' % ('Supernovae', len(liste), MAG_LIMITE))
     except Exception as e:
@@ -472,8 +486,28 @@ def main():
         ev = avant.get('evenements')
         print('Evenements               ECHEC (%s), on garde le calcul precedent' % e)
 
+    # Seeing et transparence, cometes, aurores : chacun a part, et en cas
+    # d'echec on garde le releve precedent.
+    ciel = {}
+    try:
+        import extras
+        for cle, fonction in (('seeing', extras.seeing), ('cometes', extras.cometes),
+                              ('aurores', extras.aurores)):
+            try:
+                ciel[cle] = fonction()
+                ciel[cle]['verifie'] = t
+                print('%-24s ok' % cle.capitalize())
+            except Exception as e:
+                prec = (avant.get('ciel') or {}).get(cle)
+                if prec:
+                    ciel[cle] = prec
+                print('%-24s ECHEC (%s)' % (cle.capitalize(), str(e)[:120]))
+    except Exception as e:
+        ciel = avant.get('ciel') or {}
+        print('Ciel                     ECHEC (%s)' % e)
+
     nouveau = {'version': 1, 'maj': t, 'sources': etats,
-               'articles': uniques, 'supernovae': sn, 'evenements': ev}
+               'articles': uniques, 'supernovae': sn, 'evenements': ev, 'ciel': ciel}
 
     # Rien de neuf : on ne touche pas au fichier, il n'y aura pas d'envoi.
     if avant and sans_horodatage(avant) == sans_horodatage(nouveau):
