@@ -20,7 +20,8 @@ import urllib.request
 from datetime import datetime, timedelta, timezone
 
 from skyfield.constants import GM_SUN_Pitjeva_2005_km3_s2 as GM_SUN
-from skyfield.data import mpc
+from skyfield.data.spice import inertial_frames
+from skyfield.keplerlib import _KeplerOrbit
 
 from evenements import LAT, LON, PARIS, ts, eph, TERRE, SOLEIL, ICI, CONST, NOMS_CONST
 
@@ -66,6 +67,35 @@ def seeing():
 
 
 # ---------------------------------------------------------------- cometes
+# Colonnes du fichier CometEls.txt du MPC (celles de skyfield.data.mpc, qui
+# demande pandas : on les reprend ici pour s'en passer).
+COLONNES = [('number', (0, 4)), ('orbit_type', (4, 5)), ('designation_packed', (5, 12)),
+            ('perihelion_year', (14, 18)), ('perihelion_month', (19, 21)), ('perihelion_day', (22, 29)),
+            ('perihelion_distance_au', (30, 39)), ('eccentricity', (41, 49)),
+            ('argument_of_perihelion_degrees', (51, 59)), ('longitude_of_ascending_node_degrees', (61, 69)),
+            ('inclination_degrees', (71, 79)), ('perturbed_epoch_year', (81, 85)),
+            ('perturbed_epoch_month', (85, 87)), ('perturbed_epoch_day', (87, 89)),
+            ('magnitude_g', (91, 95)), ('magnitude_k', (96, 100)), ('designation', (102, 158)),
+            ('reference', (159, 168))]
+
+
+def orbite_comete(r):
+    """Meme calcul que skyfield.data.mpc.comet_orbit."""
+    e = r['eccentricity']
+    if e == 1.0:
+        p = r['perihelion_distance_au'] * 2.0
+    else:
+        a = r['perihelion_distance_au'] / (1.0 - e)
+        p = a * (1.0 - e * e)
+    t_peri = ts.tt(r['perihelion_year'], r['perihelion_month'], r['perihelion_day'])
+    o = _KeplerOrbit._from_periapsis(p, e, r['inclination_degrees'],
+                                     r['longitude_of_ascending_node_degrees'],
+                                     r['argument_of_perihelion_degrees'], t_peri, GM_SUN, 10,
+                                     r['designation'])
+    o._rotation = inertial_frames['ECLIPJ2000'].T
+    return o
+
+
 class Ligne(dict):
     """Une ligne du fichier du MPC, lisible comme un objet (pour Skyfield)."""
     __getattr__ = dict.__getitem__
@@ -78,7 +108,7 @@ def elements_cometes(texte):
             continue
         r = Ligne()
         try:
-            for nom, (a, b) in mpc._COMET_COLUMNS:
+            for nom, (a, b) in COLONNES:
                 v = brute[a:b].strip()
                 if nom in ('perihelion_year', 'perihelion_month', 'perturbed_epoch_year',
                            'perturbed_epoch_month', 'perturbed_epoch_day'):
@@ -117,7 +147,7 @@ def cometes(aujourdhui=None):
     garde = []
     for r in elements_cometes(texte):
         try:
-            orbite = mpc.comet_orbit(r, ts, GM_SUN)
+            orbite = orbite_comete(r)
         except Exception:
             continue
         corps = soleil + orbite
