@@ -432,8 +432,6 @@ def pluies(t0, t1):
             dl = local(ti)
             nuit = dl if dl.hour < 12 else dl + timedelta(days=1)
             t3 = ts.from_datetime(datetime(nuit.year, nuit.month, nuit.day, 3, tzinfo=PARIS))
-            e = TERRE.at(t3)
-            pl = e.observe(LUNE).apparent()
             fr_ecl = float(almanac.fraction_illuminated(eph, 'moon', t3))
             hl = ICI.at(t3).observe(LUNE).apparent().altaz()[0].degrees
             lune = ('Lune éclairée à ' + fr(fr_ecl * 100, 0) + ' %'
@@ -458,7 +456,6 @@ def pluies(t0, t1):
 def planetes_visibles(depart, semaines=58):
     """Pour chaque semaine : quelles planetes voir, et quand dans la nuit."""
     sortie_ = []
-    f = almanac.dark_twilight_day(eph, wgs84.latlon(LAT, LON))
     for k in range(semaines):
         jour = depart + timedelta(days=7 * k)
         midi = ts.from_datetime(datetime(jour.year, jour.month, jour.day, 12, tzinfo=PARIS))
