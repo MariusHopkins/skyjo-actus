@@ -7,9 +7,11 @@ Il lit quelques flux d'actualite astronomique et la liste des supernovae
 brillantes, et ecrit le tout dans actus.json, que le site SkyJo vient lire.
 
 Regles qu'il respecte :
-- des articles, il ne garde que le titre, la date, la source et le lien.
-  Jamais le texte, pas meme le resume : c'est l'usage prevu des flux, et le
-  seul qui ne pose aucune question de droits ;
+- des articles, il ne garde que le titre, la date, la source, le lien et
+  l'adresse de l'image d'illustration que l'editeur publie lui-meme (dans
+  son flux, ou a defaut dans l'aperçu de sa page). Jamais le texte, pas
+  meme le resume. L'image n'est pas copiee : la page l'affiche depuis le
+  site de l'editeur, comme le ferait un lecteur de flux ;
 - des supernovae, il ne garde que des faits publies (nom, galaxie, position,
   magnitudes et leurs dates). Aucun chiffre n'est extrapole ;
 - si une source ne repond pas, il garde ce qu'il avait releve la fois
@@ -43,11 +45,13 @@ SOURCES = [
     # images commentees. Heberge par Futura, mais tenu par son seul auteur.
     {'id': 'cielmania', 'nom': 'Cielmania (J.-B. Feldmann)',
      'site': 'https://blogs.futura-sciences.com/feldmann/',
-     'flux': 'https://blogs.futura-sciences.com/feldmann/feed/'},
+     'flux': 'https://blogs.futura-sciences.com/feldmann/feed/',
+     'images': ['blogs.futura-sciences.com']},
     # Rendez-vous du ciel a observer, par un site de vulgarisation francais
     {'id': 'stelvision', 'nom': 'Stelvision',
      'site': 'https://www.stelvision.com/astro/',
      'flux': 'https://www.stelvision.com/astro/feed/',
+     'images': ['www.stelvision.com'],
      # le site tient aussi une boutique : on ecarte ce qui en fait la promotion
      'exclure': ['boutique', 'lunettes d', 'filtre', 'de stelvision', 'où trouver',
                  'ou trouver', 'promo', 'offre', 'soldes', 'cadeau', 'livraison',
@@ -55,10 +59,13 @@ SOURCES = [
     # Communiques de l'Observatoire europeen austral, en francais
     {'id': 'eso', 'nom': 'ESO',
      'site': 'https://www.eso.org/public/france/news/',
-     'flux': 'https://www.eso.org/public/france/news/feed/'},
+     'flux': 'https://www.eso.org/public/france/news/feed/',
+     'images': ['cdn.eso.org']},
     {'id': 'obspm', 'nom': 'Observatoire de Paris',
      'site': 'https://observatoiredeparis.psl.eu',
      'flux': 'https://observatoiredeparis.psl.eu/spip.php?id_rubrique=105&page=backend',
+     # le flux ne porte pas d'image : on lit l'aperçu publie par la page
+     'images': ['observatoiredeparis.psl.eu'], 'image_de_la_page': True,
      # l'Observatoire publie aussi ses prix et nominations : utiles, mais
      # pas de l'actualite du ciel
      'exclure': ['laureat', 'lauréat', 'médaille', 'medaille', 'prix ', 'recrute',
@@ -66,8 +73,13 @@ SOURCES = [
     # Peu d'articles, mais de fond, ecrits avec les chercheurs du CNRS
     {'id': 'cnrs', 'nom': 'CNRS Le Journal',
      'site': 'https://lejournal.cnrs.fr/astronomie',
-     'flux': 'https://lejournal.cnrs.fr/rss/32'},
+     'flux': 'https://lejournal.cnrs.fr/rss/32',
+     'images': ['lejournal.cnrs.fr']},
 ]
+# Les sites d'ou une image d'illustration peut venir. La page web n'affiche
+# que celles-la, et sa politique de securite (fichier _headers du site) ne
+# laisse charger des images que depuis eux : en ajouter un ici demande de
+# l'ajouter aussi la-bas.
 
 SUPERNOVAE = {
     'nom': 'Rochester Astronomy, liste des supernovae actives',
@@ -76,6 +88,7 @@ SUPERNOVAE = {
 }
 
 JOURS_ARTICLES = 75        # au-dela, un article n'est plus une actualite
+PAGES_PAR_RELEVE = 8       # apercus de pages lus au plus par passage (politesse)
 PAR_SOURCE = 12
 TOTAL = 40
 MAG_LIMITE = 16.0          # au-dela, hors de portee d'un petit instrument
@@ -142,6 +155,38 @@ def local(el):
     return el.tag.rsplit('}', 1)[-1] if isinstance(el.tag, str) else ''
 
 
+def image_valide(url, source):
+    """Une adresse d'image chiffree, venue d'un des sites prevus pour la source."""
+    if not url:
+        return None
+    url = html.unescape(url.strip())
+    m = re.match(r'https://([^/:?#]+)[/?#]', url)
+    if not m or m.group(1).lower() not in source.get('images', []):
+        return None
+    if re.search(r'[\s"<>\\]', url) or len(url) > 400:
+        return None
+    return url
+
+
+def premiere_image(texte):
+    m = re.search(r'<img\b[^>]*?\bsrc\s*=\s*["\']([^"\']+)["\']', texte or '', re.I)
+    return m.group(1) if m else None
+
+
+def image_de_la_page(page):
+    """L'aperçu que la page publie pour les reseaux (twitter:image, plus leger,
+    puis og:image)."""
+    for nom in ('twitter:image', 'og:image'):
+        for motif in (r'<meta[^>]+(?:name|property)\s*=\s*["\']' + re.escape(nom)
+                      + r'["\'][^>]*content\s*=\s*["\']([^"\']+)',
+                      r'<meta[^>]+content\s*=\s*["\']([^"\']+)["\'][^>]*(?:name|property)\s*=\s*["\']'
+                      + re.escape(nom) + r'["\']'):
+            m = re.search(motif, page, re.I)
+            if m:
+                return m.group(1)
+    return None
+
+
 def articles_du_flux(xml, source):
     racine = ET.fromstring(xml.encode('utf-8') if isinstance(xml, str) else xml)
     entrees = [e for e in racine.iter() if local(e) in ('item', 'entry')]
@@ -151,6 +196,7 @@ def articles_du_flux(xml, source):
         titre = lien = None
         dates = []
         etiquettes = []
+        images = []           # par ordre de preference
         for f in e:
             n = local(f)
             if n == 'title':
@@ -168,6 +214,14 @@ def articles_du_flux(xml, source):
             elif n == 'guid' and not lien and (f.text or '').startswith('http') \
                     and f.get('isPermaLink', 'true') != 'false':
                 lien = f.text.strip()
+            elif n == 'enclosure' and (f.get('type') or '').startswith('image/'):
+                images.insert(0, f.get('url'))
+            elif n in ('thumbnail', 'content') and f.get('url') and \
+                    ((f.get('medium') == 'image') or (f.get('type') or '').startswith('image/')
+                     or n == 'thumbnail'):
+                images.insert(0, f.get('url'))
+            elif n in ('encoded', 'description', 'summary'):
+                images.append(premiere_image(''.join(f.itertext()) or f.text or ''))
         # la date de publication prime sur celle de mise a jour
         ordre = {'pubDate': 0, 'published': 0, 'date': 1, 'issued': 2, 'updated': 3}
         dates.sort(key=lambda x: ordre.get(x[0], 9))
@@ -183,8 +237,14 @@ def articles_du_flux(xml, source):
         botte = (titre.lower() + ' | ' + ' | '.join(etiquettes))
         if any(m in botte for m in exclure):
             continue
-        sortie.append({'titre': titre[:220], 'date': quand.strftime('%Y-%m-%dT%H:%M:%SZ'),
-                       'source': source['id'], 'lien': lien})
+        art = {'titre': titre[:220], 'date': quand.strftime('%Y-%m-%dT%H:%M:%SZ'),
+               'source': source['id'], 'lien': lien}
+        for im in images:
+            im = image_valide(im, source)
+            if im:
+                art['image'] = im
+                break
+        sortie.append(art)
     return sortie
 
 
@@ -341,6 +401,10 @@ def main():
     t = maintenant().strftime('%Y-%m-%dT%H:%M:%SZ')
     limite = maintenant() - timedelta(days=JOURS_ARTICLES)
 
+    images_avant = {a['lien']: a['image'] for a in avant.get('articles', [])
+                    if a.get('lien') and a.get('image')}
+    pages_lues = 0
+
     articles, etats = [], []
     for s in SOURCES:
         etat = {'id': s['id'], 'nom': s['nom'], 'site': s['site']}
@@ -349,6 +413,24 @@ def main():
             liste = [a for a in liste if date_de(a['date']) >= limite]
             liste.sort(key=lambda a: a['date'], reverse=True)
             liste = liste[:PAR_SOURCE]
+            # Sans image dans le flux : l'aperçu de la page, lu une seule fois
+            # par article (ensuite on reprend ce qu'on avait trouve).
+            if s.get('image_de_la_page'):
+                for a in liste:
+                    if a.get('image'):
+                        continue
+                    if a['lien'] in images_avant:
+                        a['image'] = images_avant[a['lien']]
+                        continue
+                    if pages_lues >= PAGES_PAR_RELEVE:
+                        continue
+                    pages_lues += 1
+                    try:
+                        im = image_valide(image_de_la_page(lire(a['lien'])), s)
+                    except Exception:
+                        im = None
+                    if im:
+                        a['image'] = im
             etat.update(ok=True, verifie=t, n=len(liste))
             print('%-24s %2d articles' % (s['nom'], len(liste)))
         except Exception as e:                       # une source en panne n'arrete rien
