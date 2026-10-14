@@ -501,9 +501,11 @@ def main():
                 prec = (avant.get('ciel') or {}).get(cle)
                 if prec:
                     ciel[cle] = prec
+                ciel.setdefault('pannes', {})[cle] = (type(e).__name__ + ' : ' + str(e))[:160]
                 print('%-24s ECHEC (%s)' % (cle.capitalize(), str(e)[:120]))
     except Exception as e:
-        ciel = avant.get('ciel') or {}
+        ciel = dict(avant.get('ciel') or {})
+        ciel['pannes'] = {'module': (type(e).__name__ + ' : ' + str(e))[:160]}
         print('Ciel                     ECHEC (%s)' % e)
 
     nouveau = {'version': 1, 'maj': t, 'sources': etats,
